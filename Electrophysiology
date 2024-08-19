@@ -1,0 +1,91 @@
+function hodgkin_huxley_simulation()
+    clc; clear; close all;
+    % Time 19:21 , Date 19/8/2024
+    % A.Babaei
+    % Hodgkin-Huxley Model Simulation
+    % Call the Hodgkin-Huxley simulation function
+
+    % Define the simulation parameters
+    t_start = 0; t_stop = 50; dt = 0.01;
+    I_stim_start = 1000; I_stim_end = 2000; I_stim_value = 10; % Stimulus
+    [time, V_trace, I_stim] = hodgkin_huxley(t_start, t_stop, dt, I_stim_start, I_stim_end, I_stim_value);
+
+    % Plot results
+    figure('Name', 'Hodgkin_Huxley');
+    
+    subplot(2, 1, 1);
+    plot(time, V_trace, 'LineWidth', 1.314);
+    xlabel('Time (ms)', 'FontSize', 18);
+    ylabel('Membrane Potential (mV)', 'FontSize', 18);
+    title('Hodgkin-Huxley Membrane Potential', 'FontSize', 20);
+    set(gca, 'FontSize', 18); grid on;
+
+    subplot(2, 1, 2);
+    plot(time, I_stim, 'LineWidth', 1.314);
+    xlabel('Time (ms)', 'FontSize', 18);
+    ylabel('Stimulus (\muA/cm^2)', 'FontSize', 18);
+    title('Injected Stimulus', 'FontSize', 20);
+    set(gca, 'FontSize', 18); grid on;
+
+end
+
+% General Hodgkin-Huxley Simulation Function
+function [time, V_trace, I_stim] = hodgkin_huxley(t_start, t_stop, dt, I_stim_start, I_stim_end, I_stim_value)
+    % Hodgkin-Huxley parameters
+    C_m = 1.0;       % membrane capacitance, in uF/cm^2
+    g_Na = 120.0;    % maximum conductances, in mS/cm^2
+    g_K = 36.0;
+    g_L = 0.3;
+    E_Na = 50.0;     % Nernst reversal potentials, in mV
+    E_K = -77.0;
+    E_L = -54.387;
+
+    % Time vector
+    time = t_start:dt:t_stop;
+
+    % Stimulus
+    I_stim = zeros(size(time));
+    I_stim(I_stim_start:I_stim_end) = I_stim_value; % Stimulus current
+
+    % Initial conditions
+    V = -65;     % Initial membrane potential (mV)
+    n = 0.3177;  % Initial gating variable for potassium
+    m = 0.0529;  % Initial gating variable for sodium activation
+    h = 0.5961;  % Initial gating variable for sodium inactivation
+
+    % Functions for gating variables
+    alpha_n = @(V) 0.01 * (10 - (V + 55)) ./ (exp(1 - 0.1 * (V + 55)) - 1);
+    beta_n  = @(V) 0.125 * exp(-(V + 65) / 80);
+    alpha_m = @(V) 0.1 * (25 - (V + 40)) ./ (exp(2.5 - 0.1 * (V + 40)) - 1);
+    beta_m  = @(V) 4 * exp(-(V + 65) / 18);
+    alpha_h = @(V) 0.07 * exp(-(V + 65) / 20);
+    beta_h  = @(V) 1 ./ (exp(3.5 - 0.1 * (V + 35)) + 1);
+
+    % Initialize arrays to store results
+    V_trace = zeros(size(time));
+    n_trace = zeros(size(time));
+    m_trace = zeros(size(time));
+    h_trace = zeros(size(time));
+
+    % Main simulation loop
+    for i = 1:length(time)
+        V_trace(i) = V;
+        n_trace(i) = n;
+        m_trace(i) = m;
+        h_trace(i) = h;
+        
+        % Update gating variables using Hodgkin-Huxley equations
+        n = n + dt * (alpha_n(V) * (1 - n) - beta_n(V) * n);
+        m = m + dt * (alpha_m(V) * (1 - m) - beta_m(V) * m);
+        h = h + dt * (alpha_h(V) * (1 - h) - beta_h(V) * h);
+        
+        % Compute channel currents
+        I_Na = g_Na * m^3 * h * (V - E_Na);
+        I_K = g_K * n^4 * (V - E_K);
+        I_L = g_L * (V - E_L);
+        
+        % Update membrane potential (Hodgkin-Huxley equation)
+        dV = dt * (I_stim(i) - I_Na - I_K - I_L) / C_m;
+        V = V + dV;
+    end
+end
